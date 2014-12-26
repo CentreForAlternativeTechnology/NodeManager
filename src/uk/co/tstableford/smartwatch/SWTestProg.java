@@ -25,6 +25,10 @@ public class SWTestProg implements SerialPortEventListener {
 		this.packetHandlers = new HashMap<PacketTypes, PacketHandler>();
 	}
 	
+	public void addPacketHandler(PacketTypes t, PacketHandler h) {
+		packetHandlers.put(t, h);
+	}
+	
 	public void close() {
 		try {
 			this.serialPort.closePort();
@@ -42,9 +46,19 @@ public class SWTestProg implements SerialPortEventListener {
 						SerialPort.DATABITS_8,
 						SerialPort.STOPBITS_1,
 						SerialPort.PARITY_NONE);
+				sc.readBytes();
+				sc.addEventListener(this);
 				return sc;
 			}
 			return null;
+	}
+	
+	public void writeBytes(byte[] buffer) {
+		try {
+			serialPort.writeBytes(buffer);
+		} catch (SerialPortException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
