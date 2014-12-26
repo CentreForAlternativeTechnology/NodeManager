@@ -9,6 +9,10 @@ public enum PacketTypes {
 		this.value = value;
 	}
 	
+	public int getValue() {
+		return this.value;
+	}
+	
 	public static PacketTypes getPacketType(int val) {
 		for(PacketTypes p: PacketTypes.values()) {
 			if(p.value == val) {

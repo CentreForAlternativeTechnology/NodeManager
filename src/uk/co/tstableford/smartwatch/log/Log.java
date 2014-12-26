@@ -23,11 +23,11 @@ public class Log {
 	}
 	
 	public static void e(final String err) {
-		System.err.println(err);
 		if(Log.getInstance().listener != null) {
 			SwingUtilities.invokeLater(new Runnable(){
 				@Override
 				public void run() {
+					System.err.println(err);
 					Log.getInstance().listener.logError(err);
 				}
 			});
@@ -35,11 +35,11 @@ public class Log {
 	}
 	
 	public static void i(final String info) {
-		System.out.println(info);
 		if(Log.getInstance().listener != null) {
 			SwingUtilities.invokeLater(new Runnable(){
 				@Override
 				public void run() {
+					System.out.println(info);
 					Log.getInstance().listener.logInfo(info);
 				}
 			});

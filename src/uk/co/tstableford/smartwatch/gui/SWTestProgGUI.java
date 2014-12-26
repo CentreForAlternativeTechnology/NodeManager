@@ -6,6 +6,8 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Calendar;
@@ -25,8 +27,10 @@ import uk.co.tstableford.smartwatch.SWTestProg;
 import uk.co.tstableford.smartwatch.log.Log;
 import uk.co.tstableford.smartwatch.log.LogListener;
 
-public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler{
+public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler {
 	private static final String SERIAL_PORT = "/dev/rfcomm0";
+	private static final byte BUTTON_PRESSED = (byte) 0xc0;
+	private static final byte BUTTON_RELEASED = (byte) 0x30;
 	private SWTestProg swProg;
 	private JTextArea logConsole;
 	
@@ -72,10 +76,29 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 		c.weightx = 0.2;
 		
 		JButton buttons[] = new JButton[6];
+		final SWTestProgGUI thisListener = this;
 		for(int i=0; i<6; i++) {
-			buttons[i] = new JButton("B" + (i + 1));
-			buttons[i].setActionCommand("B" + (i + 1));
-			buttons[i].addActionListener(this);
+			final int j = i;
+			buttons[i] = new JButton("B" + i);
+			buttons[i].addMouseListener(new MouseListener() {
+				@Override
+				public void mouseClicked(MouseEvent arg0) {}
+				@Override
+				public void mouseEntered(MouseEvent arg0) {}
+				@Override
+				public void mouseExited(MouseEvent arg0) {}
+
+				@Override
+				public void mousePressed(MouseEvent arg0) {
+					thisListener.onButton(j, true);
+				}
+
+				@Override
+				public void mouseReleased(MouseEvent arg0) {
+					thisListener.onButton(j, false);
+				}
+				
+			});
 		}
 		
 		for(int i=0; i<3; i++) {
@@ -106,6 +129,15 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 	
 	public static void main(String[] args) {
 		new SWTestProgGUI();
+	}
+	
+	public void onButton(int button, boolean pressed) {
+		byte[] d = new byte[1];
+		d[0] = pressed ? BUTTON_PRESSED : BUTTON_RELEASED;
+		d[0] |= (byte)(button & 0x0F);
+		Packet p = new Packet(PacketTypes.BUTTON, d);
+		swProg.writeBytes(p.getBytes());
+		Log.i((pressed ? "Press " : "Release ") + "button " + button);
 	}
 
 	@Override
