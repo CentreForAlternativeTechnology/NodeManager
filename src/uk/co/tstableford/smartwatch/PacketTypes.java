@@ -1,7 +1,7 @@
 package uk.co.tstableford.smartwatch;
 
 public enum PacketTypes {
-	SETCLOCK(0x07), GETMEM(0x08), BUTTON(0x09);
+	SETCLOCK(0x07), GETMEM(0x08), BUTTON(0x09), GETFPS(0x0A);
 	
 	private final int value;
 	

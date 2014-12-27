@@ -70,13 +70,15 @@ public class SWTestProg implements SerialPortEventListener {
 				
 				final Packet p = new Packet(in[0], db);
 				final PacketHandler ph = this.packetHandlers.get(p.getPacketType());
-				
-				SwingUtilities.invokeLater(new Runnable() {
-					@Override
-					public void run() {
-						ph.handlePacket(p);
-					}	
-				});
+
+				if(ph != null) {
+					SwingUtilities.invokeLater(new Runnable() {
+						@Override
+						public void run() {
+							ph.handlePacket(p);
+						}	
+					});
+				}
 
 			} catch (SerialPortException e) {
 				Log.e("Could not read serial port.");

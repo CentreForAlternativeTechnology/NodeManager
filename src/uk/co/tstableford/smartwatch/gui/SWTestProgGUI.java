@@ -67,6 +67,7 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 		
 		swProg = new SWTestProg(SERIAL_PORT);
 		swProg.addPacketHandler(PacketTypes.GETMEM, this);
+		swProg.addPacketHandler(PacketTypes.GETFPS, this);
 	}
 	
 	private JPanel makeControlPanel() {
@@ -119,6 +120,18 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 		getMem.setActionCommand("free_mem");
 		getMem.addActionListener(this);
 		cP.add(getMem, c);
+		
+		c.gridy = 4;
+		JButton getFPS1 = new JButton("Get FPS 1");
+		getFPS1.setActionCommand("fps_1");
+		getFPS1.addActionListener(this);
+		cP.add(getFPS1, c);
+		
+		c.gridy = 5;
+		JButton getFPS2 = new JButton("Get FPS 2");
+		getFPS2.setActionCommand("fps_2");
+		getFPS2.addActionListener(this);
+		cP.add(getFPS2, c);
 		
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0.2; c.gridy++;
@@ -179,8 +192,16 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 			syncTime();
 			break;
 		case "free_mem":
-			byte[] buffer = { 0x08, 0x00 };
+			byte[] buffer = { (byte)(PacketTypes.GETMEM.getValue() & 0xFF), 0x00 };
 			swProg.writeBytes(buffer);
+			break;
+		case "fps_1":
+			byte[] buffer2 = { (byte)(PacketTypes.GETFPS.getValue() & 0xFF), 0x01, 0x00 };
+			swProg.writeBytes(buffer2);
+			break;
+		case "fps_2":
+			byte[] buffer3 = { (byte)(PacketTypes.GETFPS.getValue() & 0xFF), 0x01, 0x01 };
+			swProg.writeBytes(buffer3);
 			break;
 		}
 	}
@@ -189,9 +210,14 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 	public void handlePacket(Packet packet) {
 		switch(packet.getPacketType()) {
 		case GETMEM:
-			short a = (short)(packet.getData()[0]&0xFF);
+			short a = (short)(packet.getData()[1] & 0xFF);
 			a |= (short)(packet.getData()[0]&0xFF) << 8;
 			Log.i(a + " bytes free of 2048 bytes");
+			break;
+		case GETFPS:
+			short b = (short)(packet.getData()[2] & 0xFF);
+			b |= (short)(packet.getData()[1] & 0xFF) << 8;
+			Log.i("Screen " + (packet.getData()[0] + 1) + " FPS " + b + "ms");
 			break;
 		default:
 			Log.e("Unknown response packet type");
