@@ -205,22 +205,27 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 			break;
 		}
 	}
+	
+	private short parseShort(byte b0, byte b1) {
+		short b = (short)(b1 & 0xFF);
+		b |= (short)(b0 & 0xFF) << 8;
+		return b;
+	}
 
 	@Override
 	public void handlePacket(Packet packet) {
 		switch(packet.getPacketType()) {
 		case GETMEM:
-			short a = (short)(packet.getData()[1] & 0xFF);
-			a |= (short)(packet.getData()[0]&0xFF) << 8;
+			short a = parseShort(packet.getData()[0], packet.getData()[1]);
 			Log.i(a + " bytes free of 2048 bytes");
 			break;
 		case GETFPS:
-			short b = (short)(packet.getData()[2] & 0xFF);
-			b |= (short)(packet.getData()[1] & 0xFF) << 8;
+			short b = parseShort(packet.getData()[1], packet.getData()[2]);
 			Log.i("Screen " + (packet.getData()[0] + 1) + " FPS " + b + "ms");
 			break;
 		default:
 			Log.e("Unknown response packet type");
+			break;
 		}
 	}
 }

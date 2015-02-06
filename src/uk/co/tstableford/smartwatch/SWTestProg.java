@@ -63,7 +63,7 @@ public class SWTestProg implements SerialPortEventListener {
 
 	@Override
 	public void serialEvent(SerialPortEvent arg0) {
-		if(arg0.isRXCHAR() && arg0.getEventValue() >= 1) {
+		if(arg0.isRXCHAR() && arg0.getEventValue() > 1) {
 			try {
 				byte[] in = this.serialPort.readBytes(2);
 				byte[] db = this.serialPort.readBytes((int)(in[1] & 0xFF));
