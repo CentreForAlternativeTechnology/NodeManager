@@ -6,8 +6,6 @@ import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Calendar;
@@ -28,8 +26,6 @@ import uk.co.tstableford.emonnodemanager.log.Log;
 import uk.co.tstableford.emonnodemanager.log.LogListener;
 
 public class NodeManager implements LogListener, ActionListener, PacketHandler {
-	private static final byte BUTTON_PRESSED = (byte) 0xc0;
-	private static final byte BUTTON_RELEASED = (byte) 0x30;
 	private EMonComs swProg;
 	private JTextArea logConsole;
 	
@@ -66,7 +62,6 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		
 		swProg = new EMonComs(port);
 		swProg.addPacketHandler(PacketTypes.GETMEM, this);
-		swProg.addPacketHandler(PacketTypes.GETFPS, this);
 	}
 	
 	private JPanel makeControlPanel() {
@@ -75,62 +70,17 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.weightx = 0.2;
 		
-		JButton buttons[] = new JButton[6];
-		final NodeManager thisListener = this;
-		for(int i=0; i<6; i++) {
-			final int j = i;
-			buttons[i] = new JButton("B" + i);
-			buttons[i].addMouseListener(new MouseListener() {
-				@Override
-				public void mouseClicked(MouseEvent arg0) {}
-				@Override
-				public void mouseEntered(MouseEvent arg0) {}
-				@Override
-				public void mouseExited(MouseEvent arg0) {}
-
-				@Override
-				public void mousePressed(MouseEvent arg0) {
-					thisListener.onButton(j, true);
-				}
-
-				@Override
-				public void mouseReleased(MouseEvent arg0) {
-					thisListener.onButton(j, false);
-				}
-				
-			});
-		}
-		
-		for(int i=0; i<3; i++) {
-			c.gridy = 0; c.gridx = i;
-			cP.add(buttons[i], c);
-			c.gridy = 1;
-			cP.add(buttons[i + 3], c);
-		}
-		
-		c.gridx = 0; c.gridy = 2; c.gridwidth = 3;
+		c.gridx = 0; c.gridy = 0; c.gridwidth = 3;
 		JButton sync = new JButton("Sync Time");
 		sync.setActionCommand("sync_time");
 		sync.addActionListener(this);
 		cP.add(sync, c);
 		
-		c.gridy = 3;
+		c.gridy = 1;
 		JButton getMem = new JButton("Get Free Memory");
 		getMem.setActionCommand("free_mem");
 		getMem.addActionListener(this);
 		cP.add(getMem, c);
-		
-		c.gridy = 4;
-		JButton getFPS1 = new JButton("Get FPS 1");
-		getFPS1.setActionCommand("fps_1");
-		getFPS1.addActionListener(this);
-		cP.add(getFPS1, c);
-		
-		c.gridy = 5;
-		JButton getFPS2 = new JButton("Get FPS 2");
-		getFPS2.setActionCommand("fps_2");
-		getFPS2.addActionListener(this);
-		cP.add(getFPS2, c);
 		
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0.2; c.gridy++;
@@ -145,15 +95,6 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			port = args[0];
 		}
 		new NodeManager(port);
-	}
-	
-	public void onButton(int button, boolean pressed) {
-		byte[] d = new byte[1];
-		d[0] = pressed ? BUTTON_PRESSED : BUTTON_RELEASED;
-		d[0] |= (byte)(button & 0x0F);
-		Packet p = new Packet(PacketTypes.BUTTON, d);
-		swProg.writeBytes(p.getBytes());
-		Log.i((pressed ? "Press " : "Release ") + "button " + button);
 	}
 
 	@Override
@@ -198,14 +139,6 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			byte[] buffer = { (byte)(PacketTypes.GETMEM.getValue() & 0xFF), 0x00 };
 			swProg.writeBytes(buffer);
 			break;
-		case "fps_1":
-			byte[] buffer2 = { (byte)(PacketTypes.GETFPS.getValue() & 0xFF), 0x01, 0x00 };
-			swProg.writeBytes(buffer2);
-			break;
-		case "fps_2":
-			byte[] buffer3 = { (byte)(PacketTypes.GETFPS.getValue() & 0xFF), 0x01, 0x01 };
-			swProg.writeBytes(buffer3);
-			break;
 		}
 	}
 	
@@ -221,10 +154,6 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		case GETMEM:
 			short a = parseShort(packet.getData()[0], packet.getData()[1]);
 			Log.i(a + " bytes free of 2048 bytes");
-			break;
-		case GETFPS:
-			short b = parseShort(packet.getData()[1], packet.getData()[2]);
-			Log.i("Screen " + (packet.getData()[0] + 1) + " FPS " + b + "ms");
 			break;
 		default:
 			Log.e("Unknown response packet type");
