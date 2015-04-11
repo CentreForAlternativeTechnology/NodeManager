@@ -62,6 +62,7 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		
 		swProg = new EMonComs(port);
 		swProg.addPacketHandler(PacketTypes.GETMEM, this);
+		swProg.addPacketHandler(PacketTypes.GETCLOCK, this);
 	}
 	
 	private JPanel makeControlPanel() {
@@ -76,11 +77,17 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		sync.addActionListener(this);
 		cP.add(sync, c);
 		
-		c.gridy = 1;
+		c.gridy++;
 		JButton getMem = new JButton("Get Free Memory");
 		getMem.setActionCommand("free_mem");
 		getMem.addActionListener(this);
 		cP.add(getMem, c);
+		
+		c.gridy++;
+		JButton getClock = new JButton("Get Clock");
+		getClock.setActionCommand("get_clock");
+		getClock.addActionListener(this);
+		cP.add(getClock, c);
 		
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0.2; c.gridy++;
@@ -139,6 +146,9 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			byte[] buffer = { (byte)(PacketTypes.GETMEM.getValue() & 0xFF), 0x00 };
 			swProg.writeBytes(buffer);
 			break;
+		case "get_clock":
+			byte[] buffer2 = { (byte)(PacketTypes.GETCLOCK.getValue() & 0xFF), 0x00 };
+			swProg.writeBytes(buffer2);
 		}
 	}
 	
@@ -154,6 +164,17 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		case GETMEM:
 			short a = parseShort(packet.getData()[0], packet.getData()[1]);
 			Log.i(a + " bytes free of 2048 bytes");
+			break;
+		case GETCLOCK:
+			Calendar clock = Calendar.getInstance();
+			
+			clock.set(Calendar.YEAR, (int)(packet.getData()[0]) + 2000);
+			clock.set(Calendar.MONTH, (int)(packet.getData()[1]) - 1);
+			clock.set(Calendar.DATE, (int)(packet.getData()[2]));
+			clock.set(Calendar.HOUR_OF_DAY, (int)(packet.getData()[3]));
+			clock.set(Calendar.MINUTE, (int)(packet.getData()[4]));
+			clock.set(Calendar.SECOND, (int)(packet.getData()[5]));
+			Log.i(clock.getTime().toString());
 			break;
 		default:
 			Log.e("Unknown response packet type");
