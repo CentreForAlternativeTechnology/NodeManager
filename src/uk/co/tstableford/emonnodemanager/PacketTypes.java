@@ -1,4 +1,4 @@
-package uk.co.tstableford.smartwatch;
+package uk.co.tstableford.emonnodemanager;
 
 public enum PacketTypes {
 	SETCLOCK(0x07), GETMEM(0x08), BUTTON(0x09), GETFPS(0x0A);

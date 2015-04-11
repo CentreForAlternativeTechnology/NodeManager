@@ -1,6 +1,6 @@
-package uk.co.tstableford.smartwatch;
+package uk.co.tstableford.emonnodemanager;
 
-import uk.co.tstableford.smartwatch.log.Log;
+import uk.co.tstableford.emonnodemanager.log.Log;
 
 public class Packet {
 	private PacketTypes packetType;

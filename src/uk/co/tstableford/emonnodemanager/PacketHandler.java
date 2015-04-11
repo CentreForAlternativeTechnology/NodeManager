@@ -1,4 +1,4 @@
-package uk.co.tstableford.smartwatch;
+package uk.co.tstableford.emonnodemanager;
 
 public interface PacketHandler {
 	public void handlePacket(Packet packet);

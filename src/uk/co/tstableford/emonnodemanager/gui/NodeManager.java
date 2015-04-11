@@ -1,4 +1,4 @@
-package uk.co.tstableford.smartwatch.gui;
+package uk.co.tstableford.emonnodemanager.gui;
 
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
@@ -20,21 +20,20 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
-import uk.co.tstableford.smartwatch.Packet;
-import uk.co.tstableford.smartwatch.PacketHandler;
-import uk.co.tstableford.smartwatch.PacketTypes;
-import uk.co.tstableford.smartwatch.SWTestProg;
-import uk.co.tstableford.smartwatch.log.Log;
-import uk.co.tstableford.smartwatch.log.LogListener;
+import uk.co.tstableford.emonnodemanager.Packet;
+import uk.co.tstableford.emonnodemanager.PacketHandler;
+import uk.co.tstableford.emonnodemanager.PacketTypes;
+import uk.co.tstableford.emonnodemanager.EMonComs;
+import uk.co.tstableford.emonnodemanager.log.Log;
+import uk.co.tstableford.emonnodemanager.log.LogListener;
 
-public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler {
-	private static final String SERIAL_PORT = "/dev/rfcomm0";
+public class NodeManager implements LogListener, ActionListener, PacketHandler {
 	private static final byte BUTTON_PRESSED = (byte) 0xc0;
 	private static final byte BUTTON_RELEASED = (byte) 0x30;
-	private SWTestProg swProg;
+	private EMonComs swProg;
 	private JTextArea logConsole;
 	
-	public SWTestProgGUI() {
+	public NodeManager(String port) {
 		Log.setListener(this);
 		
 		JFrame mainFrame = new JFrame();
@@ -65,7 +64,7 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 		
 		mainFrame.setVisible(true);
 		
-		swProg = new SWTestProg(SERIAL_PORT);
+		swProg = new EMonComs(port);
 		swProg.addPacketHandler(PacketTypes.GETMEM, this);
 		swProg.addPacketHandler(PacketTypes.GETFPS, this);
 	}
@@ -77,7 +76,7 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 		c.weightx = 0.2;
 		
 		JButton buttons[] = new JButton[6];
-		final SWTestProgGUI thisListener = this;
+		final NodeManager thisListener = this;
 		for(int i=0; i<6; i++) {
 			final int j = i;
 			buttons[i] = new JButton("B" + i);
@@ -141,7 +140,11 @@ public class SWTestProgGUI implements LogListener, ActionListener, PacketHandler
 	}
 	
 	public static void main(String[] args) {
-		new SWTestProgGUI();
+		String port = null;
+		if(args.length > 0) {
+			port = args[0];
+		}
+		new NodeManager(port);
 	}
 	
 	public void onButton(int button, boolean pressed) {

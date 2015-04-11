@@ -1,24 +1,48 @@
-package uk.co.tstableford.smartwatch;
+package uk.co.tstableford.emonnodemanager;
 
 import java.util.HashMap;
 
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import uk.co.tstableford.smartwatch.log.Log;
+import uk.co.tstableford.emonnodemanager.log.Log;
 import jssc.SerialPort;
 import jssc.SerialPortEvent;
 import jssc.SerialPortEventListener;
 import jssc.SerialPortException;
+import jssc.SerialPortList;
 
-public class SWTestProg implements SerialPortEventListener {
+public class EMonComs implements SerialPortEventListener {
 	private SerialPort serialPort = null;
 	private HashMap<PacketTypes, PacketHandler> packetHandlers;
 
-	public SWTestProg(String port) {
+	public EMonComs(String port) {
+		if(port == null) {
+			String[] portNames = SerialPortList.getPortNames();
+	        for(int i = 0; i < portNames.length; i++){
+	            System.out.println(portNames[i]);
+	        }
+	        JFrame frame = new JFrame("Input Dialog Example 3");
+	        port = (String) JOptionPane.showInputDialog(frame, 
+	            "Select a serial port",
+	            "Serial Port",
+	            JOptionPane.QUESTION_MESSAGE, 
+	            null, 
+	            portNames, 
+	            portNames[0]);
+		}
+		
+		if(port == null) {
+			System.out.println("Exiting because user cancelled port selection");
+			System.exit(0);
+		}
+		
 		try {
 			this.serialPort = this.setupSerialPort(port);
 		} catch (SerialPortException e) {
 			e.printStackTrace();
+			this.serialPort = null;
 			return;
 		}
 		
@@ -42,7 +66,7 @@ public class SWTestProg implements SerialPortEventListener {
 			SerialPort sc = new SerialPort(port);
 			if(sc.openPort()) {
 				Log.i("Serial port " + port + " opened");
-				sc.setParams(SerialPort.BAUDRATE_57600, 
+				sc.setParams(SerialPort.BAUDRATE_115200, 
 						SerialPort.DATABITS_8,
 						SerialPort.STOPBITS_1,
 						SerialPort.PARITY_NONE);

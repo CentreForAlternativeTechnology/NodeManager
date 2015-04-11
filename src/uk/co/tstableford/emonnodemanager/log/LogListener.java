@@ -1,4 +1,4 @@
-package uk.co.tstableford.smartwatch.log;
+package uk.co.tstableford.emonnodemanager.log;
 
 public interface LogListener {
 	public void logError(String error);
