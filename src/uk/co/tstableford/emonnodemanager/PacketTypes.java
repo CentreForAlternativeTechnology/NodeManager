@@ -1,7 +1,8 @@
 package uk.co.tstableford.emonnodemanager;
 
 public enum PacketTypes {
-	GETCLOCK(0x06), SETCLOCK(0x07), GETMEM(0x08);
+	GETEEPROM(0x09), SETEEPROM(0x10), GETCLOCK(0x06),
+	SETCLOCK(0x07), GETMEM(0x08);
 	
 	private final int value;
 	

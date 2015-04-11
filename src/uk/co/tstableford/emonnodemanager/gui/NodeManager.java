@@ -14,9 +14,11 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 
 import uk.co.tstableford.emonnodemanager.Packet;
 import uk.co.tstableford.emonnodemanager.PacketHandler;
@@ -28,6 +30,7 @@ import uk.co.tstableford.emonnodemanager.log.LogListener;
 public class NodeManager implements LogListener, ActionListener, PacketHandler {
 	private EMonComs swProg;
 	private JTextArea logConsole;
+	private JTextField start, length, address, value;
 	
 	public NodeManager(String port) {
 		Log.setListener(this);
@@ -42,7 +45,7 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			}
 		});
 		
-		mainFrame.setTitle("Smart Watch Test Program");
+		mainFrame.setTitle("EMon Node Manager");
 		
 		mainFrame.setSize(800, 600);
 		
@@ -63,6 +66,7 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		swProg = new EMonComs(port);
 		swProg.addPacketHandler(PacketTypes.GETMEM, this);
 		swProg.addPacketHandler(PacketTypes.GETCLOCK, this);
+		swProg.addPacketHandler(PacketTypes.GETEEPROM, this);
 	}
 	
 	private JPanel makeControlPanel() {
@@ -89,6 +93,48 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		getClock.addActionListener(this);
 		cP.add(getClock, c);
 		
+		//Fetching from EEPROM
+		c.gridy++;
+		c.gridwidth = 1;
+		start = new JTextField("0");
+		length = new JTextField("10");
+		JButton getEEPROM = new JButton("Get EEPROM");
+		getEEPROM.setActionCommand("get_eeprom");
+		getEEPROM.addActionListener(this);
+		cP.add(new JLabel("Start Address"), c);
+		c.gridx = 1;
+		cP.add(new JLabel("Length"), c);
+		c.gridy++;
+		c.gridx = 0;
+		cP.add(start, c);
+		c.gridx = 1;
+		cP.add(length, c);
+		c.gridx = 2;
+		cP.add(getEEPROM, c);
+		c.gridx = 0;
+		
+		//Setting EEPROM value
+		c.gridy++;
+		c.gridwidth = 1;
+		address = new JTextField();
+		value = new JTextField();
+		JButton setEEPROM = new JButton("Set EEPROM");
+		setEEPROM.addActionListener(this);
+		setEEPROM.setActionCommand("set_eeprom");
+		cP.add(new JLabel("Address"), c);
+		c.gridx = 1;
+		cP.add(new JLabel("Value"), c);
+		c.gridx = 0;
+		c.gridy++;
+		cP.add(address, c);
+		c.gridx = 1;
+		cP.add(value, c);
+		c.gridx = 2;
+		cP.add(setEEPROM, c);
+		c.gridx = 0;
+		c.gridwidth = 1;
+		
+		//End filler
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0.2; c.gridy++;
 		cP.add(Box.createVerticalGlue(), c);
@@ -149,6 +195,36 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		case "get_clock":
 			byte[] buffer2 = { (byte)(PacketTypes.GETCLOCK.getValue() & 0xFF), 0x00 };
 			swProg.writeBytes(buffer2);
+			break;
+		case "get_eeprom":
+			short[] req = new short[2];
+			try {
+				req[0] = Short.parseShort(this.start.getText());
+				req[1] = Short.parseShort(this.length.getText());
+				
+				if(req[1] != 0 && req[1] < 100 && req[0] < 1024) {
+					byte[] buffer3 = { (byte)(PacketTypes.GETEEPROM.getValue() & 0xFF), 0x04 };
+					swProg.writeBytes(buffer3);
+					byte[] buffer4 = this.shortsToBytes(req);
+					swProg.writeBytes(buffer4);
+				} else {
+					Log.e("Address or length had invalid values");
+				}
+			} catch (NumberFormatException e) {
+				Log.e("Failed to parse address or length");
+			}
+			break;
+		case "set_eeprom":
+			short address, value;
+			try {
+				address = Short.parseShort(this.address.getText());
+				value = Short.parseShort(this.value.getText());
+				
+				this.setEEPROM(address, value);
+			} catch (NumberFormatException e) {
+				Log.e("Failed to parse address or value");
+			}
+			break;
 		}
 	}
 	
@@ -157,6 +233,29 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		b |= (short)(b0 & 0xFF) << 8;
 		return b;
 	}
+	
+	private byte[] shortsToBytes(short shorts[]) {
+		byte bytes[] = new byte[shorts.length * 2];
+		for(int i = 0; i < shorts.length; i++) {
+			bytes[(2 * i) + 1] = (byte)((shorts[i]) & 0xFF);
+			bytes[2 * i] = (byte)(((shorts[i]) >> 8) & 0xFF);
+		}
+		return bytes;
+	}
+	
+	private void setEEPROM(short address, short value) {
+		if(address < 0 || address > 1023 || value < 0 || value > 255) {
+			Log.e("Invalid values for setting EEPROM");
+			return;
+		}
+		
+		short[] req = { address, value };
+		
+		byte[] buffer1 = { (byte)(PacketTypes.SETEEPROM.getValue() & 0xFF), 0x04 };
+		swProg.writeBytes(buffer1);
+		byte[] buffer2 = this.shortsToBytes(req);
+		swProg.writeBytes(buffer2);
+	}
 
 	@Override
 	public void handlePacket(Packet packet) {
@@ -164,6 +263,21 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		case GETMEM:
 			short a = parseShort(packet.getData()[0], packet.getData()[1]);
 			Log.i(a + " bytes free of 2048 bytes");
+			break;
+		case GETEEPROM:
+			short start = parseShort(packet.getData()[0], packet.getData()[1]);
+			short length = parseShort(packet.getData()[2], packet.getData()[3]);
+			short eepromValues[] = new short[length];
+			StringBuilder str = new StringBuilder("EEPROM at " + start + " for " + length + " = [ ");
+			for(int i = 0; i < length; i++) {
+				eepromValues[i] = parseShort(packet.getData()[4 + i * 2], packet.getData()[5 + i * 2]);
+				str.append(eepromValues[i] + ", ");
+			}
+			
+			str.deleteCharAt(str.length() - 2);
+			str.append("]");
+			
+			Log.i(str.toString());
 			break;
 		case GETCLOCK:
 			Calendar clock = Calendar.getInstance();
