@@ -13,6 +13,7 @@ import java.util.Calendar;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -31,6 +32,7 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 	private EMonComs swProg;
 	private JTextArea logConsole;
 	private JTextField start, length, address, value;
+	private JCheckBox enableCalibration;
 	
 	public NodeManager(String port) {
 		Log.setListener(this);
@@ -67,6 +69,7 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		swProg.addPacketHandler(PacketTypes.GETMEM, this);
 		swProg.addPacketHandler(PacketTypes.GETCLOCK, this);
 		swProg.addPacketHandler(PacketTypes.GETEEPROM, this);
+		swProg.addPacketHandler(PacketTypes.PRESSUREREADING, this);
 	}
 	
 	private JPanel makeControlPanel() {
@@ -132,7 +135,29 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		c.gridx = 2;
 		cP.add(setEEPROM, c);
 		c.gridx = 0;
+		c.gridwidth = 3;
+		
+		/* Calibration */
+		c.gridy++;
+		JButton setBaseLevel = new JButton("Set pressure base");
+		setBaseLevel.setActionCommand("set_base_level");
+		setBaseLevel.addActionListener(this);
+		cP.add(setBaseLevel, c);
+		
+		c.gridy++;
+		c.gridwidth = 2;
+		JButton getPressure = new JButton("Get Pressure");
+		getPressure.setActionCommand("get_pressure");
+		getPressure.addActionListener(this);
+		cP.add(getPressure, c);
+		
+		c.gridx = 2;
 		c.gridwidth = 1;
+		this.enableCalibration = new JCheckBox("Calibrate?");
+		this.enableCalibration.setSelected(false);
+		cP.add(this.enableCalibration, c);
+		c.gridx = 0;
+		c.gridwidth = 3;
 		
 		//End filler
 		c.fill = GridBagConstraints.BOTH;
@@ -225,6 +250,10 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 				Log.e("Failed to parse address or value");
 			}
 			break;
+		case "get_pressure":
+			byte[] p_buffer = { (byte)(PacketTypes.PRESSUREREADING.getValue() & 0xFF), 0x00 };
+			swProg.writeBytes(p_buffer);
+			break;
 		}
 	}
 	
@@ -289,6 +318,10 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			clock.set(Calendar.MINUTE, (int)(packet.getData()[4]));
 			clock.set(Calendar.SECOND, (int)(packet.getData()[5]));
 			Log.i(clock.getTime().toString());
+			break;
+		case PRESSUREREADING:
+			short pressure = parseShort(packet.getData()[0], packet.getData()[1]);
+			Log.i("Pressure value is " + pressure);
 			break;
 		default:
 			Log.e("Unknown response packet type");

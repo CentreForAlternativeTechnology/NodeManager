@@ -90,6 +90,18 @@ public class EMonComs implements SerialPortEventListener {
 		if(arg0.isRXCHAR() && arg0.getEventValue() > 1) {
 			try {
 				byte[] in = this.serialPort.readBytes(2);
+				boolean recognised = false;
+				for(int i = 0; i < PacketTypes.values().length; i++) {
+					if((byte)(PacketTypes.values()[i].getValue() & 0xFF) == in[0]) {
+						recognised = true;
+					}
+				}
+				
+				if(!recognised) {
+					Log.e("Unknown packet type " + (short)in[0]);
+					return;
+				}
+				
 				byte[] db = this.serialPort.readBytes((int)(in[1] & 0xFF));
 				
 				final Packet p = new Packet(in[0], db);
