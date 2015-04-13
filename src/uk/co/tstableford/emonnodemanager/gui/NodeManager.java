@@ -8,6 +8,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.nio.ByteBuffer;
 import java.util.Calendar;
 
 import javax.swing.BorderFactory;
@@ -16,10 +17,13 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+
+import org.apache.commons.math3.stat.regression.SimpleRegression;
 
 import uk.co.tstableford.emonnodemanager.Packet;
 import uk.co.tstableford.emonnodemanager.PacketHandler;
@@ -31,11 +35,14 @@ import uk.co.tstableford.emonnodemanager.log.LogListener;
 public class NodeManager implements LogListener, ActionListener, PacketHandler {
 	private EMonComs swProg;
 	private JTextArea logConsole;
-	private JTextField start, length, address, value;
+	private JTextField start, length, address, value, calibrationValue, baseValue;
 	private JCheckBox enableCalibration;
+	private SimpleRegression calibration;
 	
 	public NodeManager(String port) {
 		Log.setListener(this);
+		
+		this.calibration = new SimpleRegression();
 		
 		JFrame mainFrame = new JFrame();
 		mainFrame.setLayout(new GridLayout(1, 2));
@@ -159,6 +166,22 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		c.gridx = 0;
 		c.gridwidth = 3;
 		
+		c.gridy++;
+		c.gridwidth = 1;
+		this.calibrationValue = new JTextField();
+		cP.add(this.calibrationValue, c);
+		c.gridx = 1;
+		this.baseValue = new JTextField();
+		cP.add(this.baseValue, c);
+		
+		c.gridx = 2;
+		JButton setCalibration = new JButton("Set Calibration");
+		setCalibration.setActionCommand("set_calibration");
+		setCalibration.addActionListener(this);
+		cP.add(setCalibration, c);
+		c.gridx = 0;
+		c.gridwidth = 3;
+		
 		//End filler
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0.2; c.gridy++;
@@ -254,6 +277,15 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			byte[] p_buffer = { (byte)(PacketTypes.PRESSUREREADING.getValue() & 0xFF), 0x00 };
 			swProg.writeBytes(p_buffer);
 			break;
+		case "set_calibration":
+			try {
+				float c = Float.parseFloat(this.calibrationValue.getText());
+				float yi = Float.parseFloat(this.baseValue.getText());
+				Log.i("Setting calibration gradient to " + c);
+				Log.i("Setting y-intercept to " + yi);
+			} catch (NumberFormatException e) {
+				Log.e("Calbration value or intercept is not a number");
+			}
 		}
 	}
 	
@@ -261,6 +293,10 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		short b = (short)(b1 & 0xFF);
 		b |= (short)(b0 & 0xFF) << 8;
 		return b;
+	}
+	
+	private byte[] float2ByteArray (float value) {  
+	     return ByteBuffer.allocate(4).putFloat(value).array();
 	}
 	
 	private byte[] shortsToBytes(short shorts[]) {
@@ -322,6 +358,25 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		case PRESSUREREADING:
 			short pressure = parseShort(packet.getData()[0], packet.getData()[1]);
 			Log.i("Pressure value is " + pressure);
+			if(this.enableCalibration.isSelected()) {
+				String value = JOptionPane.showInputDialog(null, "Enter depth in meters ie 0.02 for reading " + pressure);
+				if(value != null) {
+					try {
+						float depth = Float.parseFloat(value);
+						if(depth >= 0) {
+							calibration.addData(pressure, depth);
+							if(calibration.getSlope() != Double.NaN) {
+								this.calibrationValue.setText(Double.toString(calibration.getSlope()));
+								this.baseValue.setText(Double.toString(calibration.getIntercept()));
+							}
+						} else {
+							Log.e("Depth is less than 0, ignoring");
+						}
+					} catch (NumberFormatException e) {
+						Log.e("Invalid depth entry, ignoring.");
+					}
+				}
+			}
 			break;
 		default:
 			Log.e("Unknown response packet type");
