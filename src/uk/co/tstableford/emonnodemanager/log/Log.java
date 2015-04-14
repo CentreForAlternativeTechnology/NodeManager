@@ -46,4 +46,16 @@ public class Log {
 		}
 	}
 	
+	public static void d(final String debug) {
+		if(Log.getInstance().listener != null) {
+			SwingUtilities.invokeLater(new Runnable(){
+				@Override
+				public void run() {
+					System.out.println(debug);
+					Log.getInstance().listener.logDebug(debug);
+				}
+			});
+		}
+	}
+	
 }

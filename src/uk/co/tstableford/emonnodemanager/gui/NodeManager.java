@@ -8,7 +8,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.nio.ByteBuffer;
 import java.util.Calendar;
 
 import javax.swing.BorderFactory;
@@ -77,6 +76,8 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		swProg.addPacketHandler(PacketTypes.GETCLOCK, this);
 		swProg.addPacketHandler(PacketTypes.GETEEPROM, this);
 		swProg.addPacketHandler(PacketTypes.PRESSUREREADING, this);
+		swProg.addPacketHandler(PacketTypes.DEBUG, this);
+		swProg.addPacketHandler(PacketTypes.GETDEPTH, this);
 	}
 	
 	private JPanel makeControlPanel() {
@@ -182,6 +183,12 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		c.gridx = 0;
 		c.gridwidth = 3;
 		
+		c.gridy++;
+		JButton getDepth = new JButton("Get Depth");
+		getDepth.setActionCommand("get_depth");
+		getDepth.addActionListener(this);
+		cP.add(getDepth, c);
+		
 		//End filler
 		c.fill = GridBagConstraints.BOTH;
 		c.weighty = 0.2; c.gridy++;
@@ -213,6 +220,15 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			logConsole.append("[INFO]" + info + "\n");
 		} else {
 			System.err.println("Attempt to print to uninit log: " + info);
+		}
+	}
+	
+	@Override
+	public void logDebug(String debug) {
+		if(logConsole != null) {
+			logConsole.append("[DEBUG]" + debug + "\n");
+		} else {
+			System.err.println("Attempt to print to uninit log: " + debug);
 		}
 	}
 	
@@ -279,13 +295,28 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 			break;
 		case "set_calibration":
 			try {
-				float c = Float.parseFloat(this.calibrationValue.getText());
-				float yi = Float.parseFloat(this.baseValue.getText());
-				Log.i("Setting calibration gradient to " + c);
-				Log.i("Setting y-intercept to " + yi);
+				float c[] = { Float.parseFloat(this.calibrationValue.getText()) };
+				float yi[] = { Float.parseFloat(this.baseValue.getText()) };
+				Log.i("Setting calibration gradient to " + c[0]);
+				byte buffer5[] =  { (byte)(PacketTypes.SETPRESSUREGRADIENT.getValue() & 0xFF), 0x04 };
+				swProg.writeBytes(buffer5);
+				swProg.writeBytes(floatsToBytes(c));
+				Log.i("Setting y-intercept to " + yi[0]);
+				buffer5[0] = (byte)(PacketTypes.SETPRESSURECONSTANT.getValue());
+				swProg.writeBytes(buffer5);
+				swProg.writeBytes(floatsToBytes(yi));
 			} catch (NumberFormatException e) {
 				Log.e("Calbration value or intercept is not a number");
 			}
+			break;
+		case "set_base_level":
+			byte[] b_buffer = { (byte)(PacketTypes.SETPRESSUREBASE.getValue() & 0xFF), 0x00 };
+			swProg.writeBytes(b_buffer);
+			break;
+		case "get_depth":
+			byte[] d_buffer = { (byte)(PacketTypes.GETDEPTH.getValue() & 0xFF), 0x00 };
+			swProg.writeBytes(d_buffer);
+			break;
 		}
 	}
 	
@@ -295,8 +326,17 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		return b;
 	}
 	
-	private byte[] float2ByteArray (float value) {  
-	     return ByteBuffer.allocate(4).putFloat(value).array();
+	private float parseFloat(byte b0, byte b1, byte b2, byte b3) {
+		int value = 0;
+		value = b0 & 0xFF;
+		value |= (int)(b1 & 0xFF) << 8;
+		value |= (int)(b2 & 0xFF) << 16;
+		value |= (int)(b3 & 0xFF) << 24;
+		return Float.intBitsToFloat(value);
+	}
+	
+	private float parseFloat(byte[] data) {
+		return parseFloat(data[0], data[1], data[2], data[3]);
 	}
 	
 	private byte[] shortsToBytes(short shorts[]) {
@@ -304,6 +344,18 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		for(int i = 0; i < shorts.length; i++) {
 			bytes[(2 * i) + 1] = (byte)((shorts[i]) & 0xFF);
 			bytes[2 * i] = (byte)(((shorts[i]) >> 8) & 0xFF);
+		}
+		return bytes;
+	}
+	
+	private byte[] floatsToBytes(float floats[]) {
+		byte bytes[] = new byte[floats.length * 4];
+		for(int i = 0; i < floats.length; i++) {
+			int bits = Float.floatToIntBits(floats[i]);
+			bytes[2 * i] = (byte)(bits & 0xFF);
+			bytes[2 * i + 1] = (byte)((bits >> 8) & 0xFF);
+			bytes[2 * i + 2] = (byte)((bits >> 16) & 0xFF);
+			bytes[2 * i + 3] = (byte)((bits >> 24) & 0xFF);
 		}
 		return bytes;
 	}
@@ -377,6 +429,13 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 					}
 				}
 			}
+			break;
+		case DEBUG:
+			String str2 = new String(packet.getData());
+			Log.d(str2);
+			break;
+		case GETDEPTH:
+			Log.i("Depth from sensor is " + this.parseFloat(packet.getData()) + "m");
 			break;
 		default:
 			Log.e("Unknown response packet type");
