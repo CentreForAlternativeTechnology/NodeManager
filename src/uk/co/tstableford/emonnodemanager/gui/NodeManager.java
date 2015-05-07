@@ -8,12 +8,19 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Calendar;
+import java.util.LinkedList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -34,7 +41,7 @@ import uk.co.tstableford.emonnodemanager.log.LogListener;
 public class NodeManager implements LogListener, ActionListener, PacketHandler {
 	private EMonComs swProg;
 	private JTextArea logConsole;
-	private JTextField start, length, address, value, calibrationValue, baseValue;
+	private JTextField start, length, address, value, calibrationValue, baseValue, fileAddress;
 	private JCheckBox enableCalibration;
 	private SimpleRegression calibration;
 	
@@ -144,6 +151,22 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		cP.add(setEEPROM, c);
 		c.gridx = 0;
 		c.gridwidth = 3;
+		
+		c.gridy++;
+		c.gridwidth = 1;
+		cP.add(new JLabel("Start Address"), c);
+		c.gridy++;
+		this.fileAddress = new JTextField();
+		cP.add(this.fileAddress, c);
+		c.gridwidth = 2;
+		c.gridx = 1;
+		JButton loadFile = new JButton("Load to EEPROM from file");
+		loadFile.setActionCommand("load_file");
+		loadFile.addActionListener(this);
+		cP.add(loadFile, c);
+		c.gridx = 0;
+		c.gridwidth = 3;
+		
 		
 		/* Calibration */
 		c.gridy++;
@@ -289,6 +312,44 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 				Log.e("Failed to parse address or value");
 			}
 			break;
+		case "load_file":
+			JFileChooser fc = new JFileChooser();
+			int returnVal = fc.showOpenDialog(null);
+			if(returnVal == JFileChooser.APPROVE_OPTION) {
+				File file = fc.getSelectedFile();
+				try {
+					FileInputStream fi = new FileInputStream(file);
+					//short[] values = new short[1024]; //max eeprom size
+					List<Short> values = new LinkedList<Short>();
+					int read = 0;
+					for(int i = 0; i < 1024 && read >= 0; i++) {
+						try {
+							read = fi.read();
+							if(read > 0) {
+								values.add((short)read);
+							}
+						} catch (IOException e) {
+							Log.e("Could not read byte from file");
+							e.printStackTrace();
+						}
+					}
+					fi.close();
+					
+					try {
+						short start = Short.parseShort(this.fileAddress.getText());
+						this.writeToEEPROM(start, values);
+					} catch (NumberFormatException e) {
+						Log.e("Could not parse file load start address");
+					}
+				} catch (FileNotFoundException e) {
+					Log.e("Could not create input stream for file");
+					e.printStackTrace();
+				} catch (IOException e) {
+					Log.e("Could not close stream");
+					e.printStackTrace();
+				}
+			}
+			break;
 		case "get_pressure":
 			byte[] p_buffer = { (byte)(PacketTypes.PRESSUREREADING.getValue() & 0xFF), 0x00 };
 			swProg.writeBytes(p_buffer);
@@ -372,6 +433,12 @@ public class NodeManager implements LogListener, ActionListener, PacketHandler {
 		swProg.writeBytes(buffer1);
 		byte[] buffer2 = this.shortsToBytes(req);
 		swProg.writeBytes(buffer2);
+	}
+	
+	private void writeToEEPROM(short startAddress, List<Short> values) {
+		for(short i = 0; i < values.size(); i++) {
+			this.setEEPROM((short)(startAddress + i), values.get(i));
+		}
 	}
 
 	@Override
